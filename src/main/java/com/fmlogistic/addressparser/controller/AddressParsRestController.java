@@ -19,7 +19,7 @@ public class AddressParsRestController {
         address.setAddressLine(addressline);
 
         address = parsingService.parsAddress(addressline);
-        if(!address.equals(null))
+        if(address != null)
             return ResponseEntity.ok(address);
         else
             return ResponseEntity.badRequest().body("Cannot pars");

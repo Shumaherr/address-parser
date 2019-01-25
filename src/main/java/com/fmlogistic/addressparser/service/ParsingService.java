@@ -8,7 +8,10 @@ import org.springframework.boot.json.JsonParser;
 import org.springframework.boot.json.JsonParserFactory;
 import org.springframework.stereotype.Service;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
@@ -30,10 +33,10 @@ public class ParsingService {
         try
         {
             String placeId = getPlaceId(line);
-            if(!placeId.equals(null))
+            if(placeId != null)
             {
 
-                if(!parsWithGoogle(line, placeId).equals(null))
+                if(parsWithGoogle(line, placeId) != null)
                 {
                     result = parsWithGoogle(line, placeId);
                 }
@@ -42,6 +45,10 @@ public class ParsingService {
                     result = parsWithYandex(line);
                 }
 
+            }
+            else
+            {
+                result = parsWithYandex(line);
             }
         } catch (MalformedURLException e) {
             e.printStackTrace();
@@ -64,14 +71,23 @@ public class ParsingService {
         try {
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
-            if (connection.getResponseCode() == 200) {
-                JsonParser parser = JsonParserFactory.getJsonParser();
-                Map<String, Object> responseMap = parser.parseMap(connection.getResponseMessage());
-                if (responseMap.get("status").toString().equals("OK")) {
-                    List<Map<String, Object>> results = (List<Map<String, Object>>) responseMap.get("results");
-                    return results.get(0).get("place_id").toString();
+            System.out.println(connection.getInputStream());
+            //if (connection.getResponseCode() == 200) {
+                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                StringBuilder response = new StringBuilder();
+                String currentLine;
+
+                while ((currentLine = in.readLine()) != null)
+                    response.append(currentLine);
+
+                in.close();
+                System.out.println(response.toString());
+                JSONObject responseMap = new JSONObject(response.toString());
+                if (responseMap.getString("status").equals("OK")) {
+                    JSONArray results = responseMap.getJSONArray("results");
+                    return results.getJSONObject(0).getString("place_id");
                 }
-            }
+            //}
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -89,7 +105,15 @@ public class ParsingService {
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
             if (connection.getResponseCode() == 200) {
-                JSONObject response = new JSONObject(connection.getResponseMessage());
+                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                StringBuilder responseStr = new StringBuilder();
+                String currentLine;
+
+                while ((currentLine = in.readLine()) != null)
+                    responseStr.append(currentLine);
+
+                in.close();
+                JSONObject response = new JSONObject(responseStr.toString());
                 if (response.getString("status").equals("OK")) {
                     JSONArray addressComponents = response.getJSONObject("result").getJSONArray("address_components");
                     for (Object o : addressComponents) {
@@ -141,9 +165,17 @@ public class ParsingService {
         try {
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
-            org.json.JSONObject obj1 = new org.json.JSONObject(connection.getResponseMessage());
+            BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            StringBuilder responseStr = new StringBuilder();
+            String currentLine;
 
+            while ((currentLine = in.readLine()) != null)
+                responseStr.append(currentLine);
 
+            in.close();
+            org.json.JSONObject obj1 = new org.json.JSONObject(responseStr);
+
+            System.out.println(responseStr);
             org.json.JSONObject address = obj1.getJSONObject("response").getJSONObject("GeoObjectCollection").getJSONArray("featureMember").getJSONObject(0).getJSONObject("GeoObject").getJSONObject("metaDataProperty").getJSONObject("GeocoderMetaData").getJSONObject("Address");
 
             try {
